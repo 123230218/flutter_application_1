@@ -6,5 +6,5 @@ class ApiConstants {
   static const String overpassUrl = 'https://overpass-api.de/api/interpreter';
 
   // Gemini API Key
-  static const String geminiApiKey = 'AIzaSyBGafeauqKhxUvItkUKvTqb0SdV9YKZkyQ';
+  static const String geminiApiKey = 'AIzaSyBBfkDXry0r72-X8Hs-8UR3GXlfaTMwPHE';
 }
