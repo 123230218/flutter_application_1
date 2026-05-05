@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../constants/api_constants.dart';
 
 class LlmService {
-  static const String _geminiModel = 'gemini-2.5-flash';
+  static const String _geminiModel = 'gemini-1.5-flash-latest';
   String _debugInfo = '';
 
   Future<String> sendPrompt(String prompt, {List<Map<String, String>>? history}) async {
