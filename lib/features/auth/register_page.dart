@@ -28,6 +28,16 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _handleRegister() async {
+    final email = _emailController.text.trim();
+
+    // Validasi: hanya email @gmail.com yang diizinkan
+    if (!email.toLowerCase().endsWith('@gmail.com')) {
+      setState(() {
+        _error = 'Email harus menggunakan @gmail.com';
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
@@ -36,7 +46,7 @@ class _RegisterPageState extends State<RegisterPage> {
     final auth = context.read<AuthProvider>();
     final error = await auth.register(
       username: _usernameController.text.trim(),
-      email: _emailController.text.trim(),
+      email: email,
       password: _passwordController.text.trim(),
     );
 
@@ -74,7 +84,12 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(height: 12),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'contoh@gmail.com',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(

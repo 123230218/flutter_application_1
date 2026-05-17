@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/services/biometric_service.dart';
+import '../../core/services/database_service.dart';
 import '../../widgets/custom_button.dart';
 import '../auth/auth_provider.dart';
 import '../auth/register_page.dart';
@@ -17,8 +18,8 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _biometricService = BiometricService();
   bool _loading = false;
+  bool _isAuthenticating = false;
   String? _error;
   bool _biometricReady = false;
 
@@ -26,6 +27,7 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    BiometricService.instance.stopAuthentication();
     super.dispose();
   }
 
@@ -36,13 +38,26 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
       final lastEmail = await auth.getLastEmail();
-      if (mounted) {
-        setState(() => _biometricReady = lastEmail != null);
+      if (lastEmail != null && mounted) {
+        final user = await DatabaseService.instance.getUserByEmail(lastEmail);
+        if (mounted) {
+          setState(() {
+            _biometricReady = (user?['biometric_enabled'] as int? ?? 0) == 1;
+          });
+        }
       }
     });
   }
 
   Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+
+    // Validasi: hanya email @gmail.com yang diizinkan
+    if (!email.toLowerCase().endsWith('@gmail.com')) {
+      setState(() => _error = 'Email harus menggunakan @gmail.com');
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
@@ -50,7 +65,7 @@ class _LoginPageState extends State<LoginPage> {
 
     final auth = context.read<AuthProvider>();
     final error = await auth.login(
-      _emailController.text.trim(),
+      email,
       _passwordController.text.trim(),
     );
 
@@ -65,6 +80,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleBiometric() async {
+    if (_isAuthenticating) return;
+
     final auth = context.read<AuthProvider>();
     final lastEmail = await auth.getLastEmail();
     if (lastEmail == null) {
@@ -72,23 +89,44 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    final can = await _biometricService.canCheckBiometrics();
-    if (!can) {
-      setState(() => _error = 'Biometrik tidak tersedia.');
-      return;
-    }
+    setState(() {
+      _isAuthenticating = true;
+      _error = null;
+    });
 
-    final ok = await _biometricService.authenticate();
-    if (!ok) {
-      setState(() => _error = 'Autentikasi biometrik gagal.');
-      return;
-    }
+    try {
+      final can = await BiometricService.instance.canCheckBiometrics();
+      if (!can) {
+        setState(() {
+          _error = 'Biometrik tidak tersedia.';
+          _isAuthenticating = false;
+        });
+        return;
+      }
 
-    final error = await auth.loginWithBiometric(lastEmail);
-    if (error != null) {
-      setState(() => _error = error);
-    } else if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      final ok = await BiometricService.instance.authenticate();
+      if (!ok) {
+        setState(() {
+          _error = 'Autentikasi biometrik gagal.';
+          _isAuthenticating = false;
+        });
+        return;
+      }
+
+      final error = await auth.loginWithBiometric(lastEmail);
+      if (error != null) {
+        setState(() {
+          _error = error;
+          _isAuthenticating = false;
+        });
+      } else if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Terjadi kesalahan: $e';
+        _isAuthenticating = false;
+      });
     }
   }
 
@@ -116,7 +154,12 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: 24),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'contoh@gmail.com',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -131,12 +174,13 @@ class _LoginPageState extends State<LoginPage> {
             _loading
                 ? const Center(child: CircularProgressIndicator())
                 : CustomButton(label: 'Masuk', onPressed: _handleLogin),
-            const SizedBox(height: 12),
-            CustomButton(
-              label: 'Login dengan Biometrik',
-              onPressed: _biometricReady ? _handleBiometric : () {},
-              isPrimary: false,
-            ),
+            _isAuthenticating
+                ? const Center(child: CircularProgressIndicator())
+                : CustomButton(
+                    label: 'Login dengan Biometrik',
+                    onPressed: _biometricReady ? _handleBiometric : () {},
+                    isPrimary: false,
+                  ),
             const SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.push(

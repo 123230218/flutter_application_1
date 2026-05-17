@@ -87,8 +87,8 @@ class ApiService {
 
   Future<Map<String, double>> fetchExchangeRates() async {
     final box = await Hive.openBox('exchange_rates');
-    final cached = box.get('rates') as Map<String, dynamic>?;
-    if (cached != null && _isFresh(cached['timestamp'] as int, const Duration(hours: 6))) {
+    final cached = box.get('v2_rates') as Map<String, dynamic>?;
+    if (cached != null && _isFresh(cached['timestamp'] as int, const Duration(hours: 1))) {
       return (cached['data'] as Map).map((key, value) => MapEntry(key.toString(), value.toDouble()));
     }
 
@@ -96,29 +96,30 @@ class ApiService {
       final response = await http.get(Uri.parse(ApiConstants.exchangeRateBaseUrl));
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
-        final rates = (json['conversion_rates'] as Map<String, dynamic>).map(
+        final rates = (json['rates'] as Map<String, dynamic>).map(
           (key, value) => MapEntry(key, (value as num).toDouble()),
         );
-        final updated = (json['time_last_update_unix'] as num?)?.toInt();
-        await box.put('rates', {
+        
+        await box.put('v2_rates', {
           'timestamp': DateTime.now().millisecondsSinceEpoch,
           'data': rates,
         });
-        if (updated != null) {
-          await box.put('last_updated', updated);
-        }
+        
+        final updated = (json['time_last_update_unix'] as num?)?.toInt() ?? 
+                       (DateTime.now().millisecondsSinceEpoch ~/ 1000);
+        await box.put('last_updated', updated);
         return rates;
       }
-    } catch (_) {
-      // Ignore and fallback below
+    } catch (e) {
+      print('ApiService: Gagal mengambil kurs: $e');
     }
 
     final fallback = {
       'USD': 1.0,
-      'IDR': 15000.0,
-      'EUR': 0.9,
-      'JPY': 150.0,
-      'GBP': 0.78,
+      'IDR': 17400.0,
+      'EUR': 0.92,
+      'JPY': 157.0,
+      'GBP': 0.79,
     };
     await box.put('last_updated', DateTime.now().millisecondsSinceEpoch ~/ 1000);
     return fallback;

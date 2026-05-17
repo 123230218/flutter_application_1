@@ -24,7 +24,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Uint8List? _webImageBytes;
   Map<String, Object?>? _user;
   bool _loading = false;
-  final _biometricService = BiometricService();
   bool _biometricEnabled = false;
   final _usernameController = TextEditingController();
 
@@ -36,6 +35,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   void dispose() {
+    BiometricService.instance.stopAuthentication();
     super.dispose();
   }
 
@@ -78,23 +78,36 @@ class _ProfilePageState extends State<ProfilePage> {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
 
-    final can = await _biometricService.canCheckBiometrics();
-    if (!can) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Biometrik tidak tersedia di perangkat ini.')),
-    );
-      return;
-    }
+    setState(() => _loading = true);
 
-    final ok = await _biometricService.authenticate();
-    if (ok) {
-      await DatabaseService.instance.updateBiometricStatus(auth.userId!, true);
+    try {
+      final can = await BiometricService.instance.canCheckBiometrics();
+      if (!can) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Biometrik tidak tersedia di perangkat ini.')),
+        );
+        setState(() => _loading = false);
+        return;
+      }
+
+      final ok = await BiometricService.instance.authenticate();
+      if (ok) {
+        await DatabaseService.instance.updateBiometricStatus(auth.userId!, true);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Biometrik berhasil didaftarkan!')),
+        );
+        _loadUser();
+      } else {
+        setState(() => _loading = false);
+      }
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Biometrik berhasil didaftarkan!')),
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
       );
-      _loadUser();
+      setState(() => _loading = false);
     }
   }
 

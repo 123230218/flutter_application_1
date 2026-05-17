@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/api_constants.dart';
 
 class GeminiChatScreen extends StatefulWidget {
   const GeminiChatScreen({super.key});
@@ -14,8 +15,6 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
 
-  // Panduan: Ganti API Key di bawah dengan key dari aistudio.google.com
-  final String _apiKey = 'AIzaSyDBvniZxuIXrlIDeI1NjVY8OiyBMKd2p_w';
 
   @override
   void dispose() {
@@ -34,16 +33,16 @@ class _GeminiChatScreenState extends State<GeminiChatScreen> {
     });
 
     try {
-      if (_apiKey.contains('ISI_API_KEY')) {
+      if (ApiConstants.geminiApiKey.isEmpty || ApiConstants.geminiApiKey.contains('API_KEY')) {
         setState(() {
-          _messages.add({'role': 'bot', 'text': 'Silakan isi API Key Gemini di kode (gemini_chat_screen.dart) terlebih dahulu.'});
+          _messages.add({'role': 'bot', 'text': 'Silakan isi API Key Gemini di ApiConstants.dart terlebih dahulu.'});
         });
         return;
       }
 
       final model = GenerativeModel(
-        model: 'gemini-1.5-flash-latest',
-        apiKey: _apiKey,
+        model: 'gemini-2.5-flash',
+        apiKey: ApiConstants.geminiApiKey,
       );
 
       final content = [Content.text(text)];

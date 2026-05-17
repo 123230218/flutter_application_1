@@ -1,0 +1,6 @@
+-keepattributes Signature
+-keep class com.google.gson.** { *; }
+-keep class com.dexterous.flutterlocalnotifications.** { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+-keep class * implements java.lang.reflect.ParameterizedType
+-keep class com.example.flutter_application_1.** { *; }
